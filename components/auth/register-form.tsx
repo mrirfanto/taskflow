@@ -7,10 +7,19 @@ import * as z from 'zod';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { useAuth } from './auth-provider';
 import { useRouter } from 'next/navigation';
+import { AuthError } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 // Define form validation schema with zod
 const registerSchema = z
@@ -34,16 +43,13 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [passwordStrength, setPasswordStrength] = useState<number>(0);
   const { register: registerUser } = useAuth();
   const router = useRouter();
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm<RegisterFormValues>({
+  const form = useForm<RegisterFormValues>({
+    mode: 'onSubmit',
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: '',
@@ -55,7 +61,7 @@ export function RegisterForm() {
   });
 
   // Watch password field to calculate strength
-  const password = watch('password');
+  const password = form.watch('password');
 
   // Calculate password strength whenever password changes
   const calculatePasswordStrength = (password: string) => {
@@ -78,146 +84,194 @@ export function RegisterForm() {
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
+    setError(null);
+
     try {
       await registerUser(data.name, data.email, data.password);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Registration failed', error);
+      toast.success('Account created!', {
+        description:
+          'Please check your email to verify your account before logging in.',
+        duration: 5000,
+        richColors: true,
+      });
+      router.push('/login');
+    } catch (err) {
+      console.error('Registration failed', err);
+      const errorMessage =
+        err instanceof AuthError
+          ? err.message
+          : 'Registration failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="name">Full Name</Label>
-          <Input
-            id="name"
-            placeholder="John Doe"
-            type="text"
-            autoCapitalize="words"
-            autoComplete="name"
-            autoCorrect="off"
-            disabled={isLoading}
-            {...register('name')}
-          />
-          {errors.name && (
-            <p className="text-sm text-red-500">{errors.name.message}</p>
-          )}
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            placeholder="name@example.com"
-            type="email"
-            autoCapitalize="none"
-            autoComplete="email"
-            autoCorrect="off"
-            disabled={isLoading}
-            {...register('email')}
-          />
-          {errors.email && (
-            <p className="text-sm text-red-500">{errors.email.message}</p>
-          )}
-        </div>
-
-        <div className="grid gap-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <span className="text-xs text-muted-foreground">
-              Min. 8 characters
-            </span>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {error && (
+          <div className="p-3 rounded-md bg-red-50 text-red-500 text-sm">
+            {error}
           </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            disabled={isLoading}
-            {...register('password')}
-          />
-          <div className="flex gap-1 h-1 mt-1">
-            <div
-              className={`w-1/4 h-full rounded-full ${
-                passwordStrength >= 1 ? 'bg-primary/30' : 'bg-muted'
-              }`}
-            ></div>
-            <div
-              className={`w-1/4 h-full rounded-full ${
-                passwordStrength >= 2 ? 'bg-primary/30' : 'bg-muted'
-              }`}
-            ></div>
-            <div
-              className={`w-1/4 h-full rounded-full ${
-                passwordStrength >= 3 ? 'bg-primary/30' : 'bg-muted'
-              }`}
-            ></div>
-            <div
-              className={`w-1/4 h-full rounded-full ${
-                passwordStrength >= 4 ? 'bg-primary/30' : 'bg-muted'
-              }`}
-            ></div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {passwordStrength === 0 && 'No password'}
-            {passwordStrength === 1 && 'Weak password'}
-            {passwordStrength === 2 && 'Medium strength'}
-            {passwordStrength === 3 && 'Strong password'}
-            {passwordStrength === 4 && 'Very strong password'}
-          </p>
-          {errors.password && (
-            <p className="text-sm text-red-500">{errors.password.message}</p>
-          )}
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            disabled={isLoading}
-            {...register('confirmPassword')}
-          />
-          {errors.confirmPassword && (
-            <p className="text-sm text-red-500">
-              {errors.confirmPassword.message}
-            </p>
-          )}
-        </div>
-
-        <div className="items-top flex space-x-2 pt-2">
-          <Checkbox id="terms" {...register('terms')} />
-          <div className="grid gap-1.5 leading-none">
-            <label
-              htmlFor="terms"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              I agree to the Terms and Conditions
-            </label>
-            <p className="text-xs text-muted-foreground">
-              By creating an account, you agree to our{' '}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </Link>
-            </p>
-            {errors.terms && (
-              <p className="text-sm text-red-500">{errors.terms.message}</p>
+        )}
+        <div className="grid gap-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full Name</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="John Doe"
+                    type="text"
+                    autoCapitalize="words"
+                    autoComplete="name"
+                    autoCorrect="off"
+                    disabled={isLoading}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
-          </div>
-        </div>
-      </div>
+          />
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? 'Creating account...' : 'Create account'}
-      </Button>
-    </form>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="name@example.com"
+                    type="email"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect="off"
+                    disabled={isLoading}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Password</FormLabel>
+                  <span className="text-xs text-muted-foreground">
+                    Min. 8 characters
+                  </span>
+                </div>
+                <FormControl>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    disabled={isLoading}
+                    {...field}
+                  />
+                </FormControl>
+                <div className="flex gap-1 h-1 mt-1">
+                  <div
+                    className={`w-1/4 h-full rounded-full ${
+                      passwordStrength >= 1 ? 'bg-primary/30' : 'bg-muted'
+                    }`}
+                  ></div>
+                  <div
+                    className={`w-1/4 h-full rounded-full ${
+                      passwordStrength >= 2 ? 'bg-primary/30' : 'bg-muted'
+                    }`}
+                  ></div>
+                  <div
+                    className={`w-1/4 h-full rounded-full ${
+                      passwordStrength >= 3 ? 'bg-primary/30' : 'bg-muted'
+                    }`}
+                  ></div>
+                  <div
+                    className={`w-1/4 h-full rounded-full ${
+                      passwordStrength >= 4 ? 'bg-primary/30' : 'bg-muted'
+                    }`}
+                  ></div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {passwordStrength === 0 && 'No password'}
+                  {passwordStrength === 1 && 'Weak password'}
+                  {passwordStrength === 2 && 'Medium strength'}
+                  {passwordStrength === 3 && 'Strong password'}
+                  {passwordStrength === 4 && 'Very strong password'}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    disabled={isLoading}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="terms"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>I agree to the Terms and Conditions</FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    By creating an account, you agree to our{' '}
+                    <Link
+                      href="/terms"
+                      className="text-primary hover:underline"
+                    >
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link
+                      href="/privacy"
+                      className="text-primary hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                  </p>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Creating account...' : 'Create account'}
+        </Button>
+      </form>
+    </Form>
   );
 }

@@ -10,7 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from './auth-provider';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AuthError } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 // Define form validation schema with zod
 const loginSchema = z.object({
@@ -25,8 +27,11 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
 
   const {
     register,
@@ -43,11 +48,32 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
+    setError(null);
+
     try {
       await login(data.email, data.password);
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Login failed', error);
+      router.push(redirectTo);
+    } catch (err) {
+      console.error('Login failed', err);
+
+      const errorMessage =
+        err instanceof AuthError
+          ? err.message
+          : 'Failed to sign in. Please check your credentials.';
+
+      if (
+        err instanceof AuthError &&
+        err.message.includes('Email not confirmed')
+      ) {
+        toast.error('Email not verified', {
+          description:
+            'Please check your inbox and verify your email before logging in.',
+          duration: 5000,
+          richColors: true,
+        });
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -55,6 +81,11 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {error && (
+        <div className="p-3 rounded-md bg-red-50 text-red-500 text-sm">
+          {error}
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

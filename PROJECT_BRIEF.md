@@ -44,3 +44,13 @@
 - [x] Create feature-based folder structure
 - [x] Create UI for `/login` and `/register` pages
 - [x] Setup react-hook-form
+
+### Phase 2: Authentication Integration with Supabase
+
+- [x] Create Supabase Client
+- [x] Connect with Supabase Auth
+- [x] Connect Login page with supabase auth
+- [x] Connect Register Page with supabase auth
+- [] Enable Google sign in
+- [x] Create protected dashboard page
+- [x] Create middleware for protected routes

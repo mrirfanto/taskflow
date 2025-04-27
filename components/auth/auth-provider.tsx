@@ -1,10 +1,12 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { createClient as createClientBrowser } from '@/utils/supabase/client';
+import { User } from '@supabase/supabase-js';
 
 type AuthContextType = {
   isAuthenticated: boolean;
-  user: null | { id: string; email: string; name: string };
+  user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -14,40 +16,74 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<{
-    id: string;
-    email: string;
-    name: string;
-  } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [supabase] = useState(() => createClientBrowser());
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        setIsAuthenticated(true);
+        setUser(session.user);
+      }
+    };
+
+    checkUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setIsAuthenticated(true);
+        setUser(session.user);
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   const login = async (email: string, password: string) => {
-    // This would be replaced with actual Supabase auth
-    console.log('Login with', email, password);
-    // Simulate login
-    setIsAuthenticated(true);
-    setUser({
-      id: '1',
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      name: 'Demo User',
+      password,
     });
+
+    if (error) {
+      throw error;
+    }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    // This would be replaced with actual Supabase auth
-    console.log('Register with', name, email, password);
-    // Simulate registration
-    setIsAuthenticated(true);
-    setUser({
-      id: '1',
+    const { error } = await supabase.auth.signUp({
       email,
-      name,
+      password,
+      options: {
+        data: {
+          name,
+        },
+      },
     });
+
+    if (error) {
+      throw error;
+    }
   };
 
   const logout = async () => {
-    // This would be replaced with actual Supabase auth
-    setIsAuthenticated(false);
-    setUser(null);
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
   };
 
   return (
