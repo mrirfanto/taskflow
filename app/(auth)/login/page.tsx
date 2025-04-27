@@ -8,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { LoginForm } from '@/components/auth/login-form';
+import { LoginForm } from '@/components/auth/login/form';
+import { LoginFormSkeleton } from '@/components/auth/login/skeleton';
 import { Suspense } from 'react';
 
 export const metadata = {
@@ -41,7 +42,7 @@ export default function LoginPage() {
           <CardDescription>Sign in to your TaskFlow account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Suspense>
+          <Suspense fallback={<LoginFormSkeleton />}>
             <LoginForm />
           </Suspense>
         </CardContent>

@@ -7,6 +7,7 @@ import { User } from '@supabase/supabase-js';
 type AuthContextType = {
   isAuthenticated: boolean;
   user: User | null;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [supabase] = useState(() => createClientBrowser());
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         setUser(session.user);
       }
+      setIsLoading(false);
     };
 
     checkUser();
@@ -105,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         isAuthenticated,
         user,
+        isLoading,
         login,
         loginWithGoogle,
         register,

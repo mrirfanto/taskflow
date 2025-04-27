@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useAuth } from './auth-provider';
+import { useAuth } from '@/components/shared/provider/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthError } from '@supabase/supabase-js';
 import { toast } from 'sonner';

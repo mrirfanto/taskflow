@@ -16,7 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useAuth } from './auth-provider';
+import { useAuth } from '@/components/shared/provider/auth';
 import { useRouter } from 'next/navigation';
 import { AuthError } from '@supabase/supabase-js';
 import { toast } from 'sonner';
