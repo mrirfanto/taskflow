@@ -1,0 +1,5 @@
+echo "🔍 Running type check..."
+npx tsc --noEmit
+
+echo "🧹 Running build..."
+pnpm build
