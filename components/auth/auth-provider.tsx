@@ -8,6 +8,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -62,6 +63,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  };
+
   const register = async (name: string, email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
       email,
@@ -88,7 +102,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, user, login, register, logout }}
+      value={{
+        isAuthenticated,
+        user,
+        login,
+        loginWithGoogle,
+        register,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

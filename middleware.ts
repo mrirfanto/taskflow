@@ -5,8 +5,16 @@ import { createClient as createClientServer } from '@/utils/supabase/server';
 // List of public routes that don't require authentication
 const publicRoutes = ['/login', '/register', '/forgot-password'];
 
+// OAuth related paths that should be accessible without authentication
+const oauthRelatedPaths = ['/auth/callback', '/api/auth'];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Skip authentication for OAuth-related paths
+  if (oauthRelatedPaths.some((path) => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
 
   // Create supabase server client
   const supabase = await createClientServer();
