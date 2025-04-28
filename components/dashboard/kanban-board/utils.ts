@@ -1,4 +1,4 @@
-import { Priority } from './types';
+import { Priority } from '@/types/task';
 
 export const getPriorityColor = (priority: Priority) => {
   switch (priority) {

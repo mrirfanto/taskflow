@@ -4,30 +4,27 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Save } from 'lucide-react';
-import { Priority, Task } from '../types';
+import { X, Save, Loader2 } from 'lucide-react';
+import { Priority, Task } from '@/types/task';
 
 interface CreateTaskProps {
   onCancel: () => void;
   onSave: (task: Omit<Task, 'id' | 'columnId' | 'order'>) => void;
+  isSubmitting?: boolean;
 }
 
-export default function CreateTask({ onCancel, onSave }: CreateTaskProps) {
-  // SUPABASE: Form state will need validation before saving to database
+export default function CreateTask({ onCancel, onSave, isSubmitting = false }: CreateTaskProps) {
+  // Form state
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
 
-  // Use a simple date input for now
-  // SUPABASE: Consider timezone handling for dates when storing in the database
   const [dueDate, setDueDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
 
   const handleSave = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || isSubmitting) return;
 
-    // SUPABASE: This would trigger a database insert or RPC call
-    // Consider adding loading state while the database operation completes
     onSave({
       title: title.trim(),
       priority,
@@ -45,6 +42,7 @@ export default function CreateTask({ onCancel, onSave }: CreateTaskProps) {
             onChange={(e) => setTitle(e.target.value)}
             className="w-full"
             autoFocus
+            disabled={isSubmitting}
           />
 
           <div className="flex gap-2">
@@ -52,6 +50,7 @@ export default function CreateTask({ onCancel, onSave }: CreateTaskProps) {
               value={priority}
               onChange={(e) => setPriority(e.target.value as Priority)}
               className="w-1/2 px-3 py-1 rounded border border-input bg-background"
+              disabled={isSubmitting}
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -63,21 +62,29 @@ export default function CreateTask({ onCancel, onSave }: CreateTaskProps) {
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               className="w-1/2"
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="flex justify-end space-x-2 pt-2">
-            <Button variant="ghost" size="sm" onClick={onCancel}>
+            <Button variant="ghost" size="sm" onClick={onCancel} disabled={isSubmitting}>
               <X className="mr-1 h-4 w-4" /> Cancel
             </Button>
             <Button
               variant="default"
               size="sm"
               onClick={handleSave}
-              disabled={!title.trim()}
-              // SUPABASE: Consider adding a loading state to prevent multiple submissions
+              disabled={!title.trim() || isSubmitting}
             >
-              <Save className="mr-1 h-4 w-4" /> Save
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-1 h-4 w-4" /> Save
+                </>
+              )}
             </Button>
           </div>
         </div>

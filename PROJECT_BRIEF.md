@@ -62,3 +62,7 @@
 - [x] Create data structures for each Board, Column, and Task
 - [x] Integrate with Supabase
 - [x] Implement client side fetching with SWR
+- [x] Implement create task
+
+### Phase 4
+- [] Implement default board for new authenticated users

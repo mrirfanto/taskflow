@@ -1,4 +1,4 @@
-import { Priority } from '@/components/dashboard/kanban-board/types';
+import { Priority } from '@/types/task';
 
 export interface DatabaseBoard {
   id: string;
@@ -11,7 +11,7 @@ export interface DatabaseBoard {
 export interface DatabaseColumn {
   id: string;
   title: string;
-  order: number;
+  sort_order: number;
   color: string;
   board_id: string;
   created_at: string;
@@ -23,7 +23,7 @@ export interface DatabaseTask {
   title: string;
   priority: Priority;
   due_date: string;
-  order: number;
+  sort_order: number;
   column_id: string;
   created_at: string;
   updated_at: string;

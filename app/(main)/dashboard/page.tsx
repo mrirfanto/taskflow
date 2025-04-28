@@ -3,7 +3,7 @@ import KanbanBoard from '@/components/dashboard/kanban-board';
 
 export default function DashboardPage() {
   return (
-    <div className="container mx-auto px-2 py-4 flex flex-col gap-4 h-[calc(100vh-144px)]">
+    <div className="container mx-auto px-2 py-4 flex flex-col gap-4 h-full">
       <DashboardWelcome />
       <KanbanBoard />
     </div>

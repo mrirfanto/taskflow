@@ -6,12 +6,15 @@ import { getPriorityColor } from './utils';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, ClipboardListIcon } from 'lucide-react';
 import CreateTask from './create-task';
-import { useKanbanData } from './hooks/useKanbanData';
 import { Skeleton } from '@/components/ui/skeleton';
+import useTasks from '@/hooks/useTasks';
+import { toast } from 'sonner';
+import { Task } from '@/types/task';
 
 export default function KanbanBoard() {
-  const { data: kanbanState, error, isLoading } = useKanbanData();
+  const { data: kanbanState, error, isLoading, createTask } = useTasks();
   const [creatingInColumn, setCreatingInColumn] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -24,6 +27,52 @@ export default function KanbanBoard() {
 
   const handleCancelCreateTask = () => {
     setCreatingInColumn(null);
+  };
+
+  const handleSaveTask = async (taskData: Omit<Task, 'id' | 'columnId' | 'order'>) => {
+    if (!creatingInColumn || !kanbanState) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Get the current column to determine the order for the new task
+      const column = kanbanState.columns[creatingInColumn];
+      const currentTasks = column?.taskIds
+        .map(id => kanbanState.tasks[id])
+        .filter((task): task is Task => task !== undefined) || [];
+      
+      // Calculate the new order (add to the top of the list)
+      // Find the highest order value and add 1000 to ensure it's at the top
+      // This leaves room for potential reordering in the future
+      const newOrder = currentTasks.length > 0 
+        ? Math.max(...currentTasks.map(task => task.order)) + 1000 
+        : 1000;
+      
+      // Create the task using the useTasks hook
+      await createTask(
+        taskData.title,
+        taskData.priority,
+        taskData.dueDate,
+        creatingInColumn,
+        newOrder
+      );
+      
+      // Close the create task form
+      setCreatingInColumn(null);
+      
+      // Show success toast
+      toast.success('Task created successfully', {
+        richColors: true
+      });
+    } catch (error) {
+      // Show error toast
+      toast.error('Failed to create task. Please try again.', {
+        richColors: true
+      });
+      console.error('Error creating task:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (error) {
@@ -66,8 +115,7 @@ export default function KanbanBoard() {
         {orderedColumns.map((column) => {
           const columnTaskIds = column.taskIds;
           const columnTasks = columnTaskIds
-            .map((taskId) => kanbanState.tasks[taskId])
-            .sort((a, b) => a.order - b.order);
+            .map((taskId) => kanbanState.tasks[taskId]);
 
           return (
             <div
@@ -101,7 +149,8 @@ export default function KanbanBoard() {
                 {creatingInColumn === column.id && (
                   <CreateTask
                     onCancel={handleCancelCreateTask}
-                    onSave={() => {}} // TODO: Implement task creation
+                    onSave={handleSaveTask}
+                    isSubmitting={isSubmitting}
                   />
                 )}
                 {columnTasks.length > 0 ? (
