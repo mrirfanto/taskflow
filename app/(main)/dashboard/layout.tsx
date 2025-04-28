@@ -11,8 +11,8 @@ export default async function MainLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-screen">
-      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    <div className="flex">
+      <main className="flex-1 p-6">{children}</main>
     </div>
   );
 }

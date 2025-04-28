@@ -54,3 +54,10 @@
 - [] Enable Google sign in
 - [x] Create protected dashboard page
 - [x] Create middleware for protected routes
+
+### Phase 3: Create UI for Task List and Kanban board
+
+- [x] Create Kanband Board style for Task List
+- [x] Create UI for adding new task
+- [x] Create data structures for each Board, Column, and Task
+- [] Integrate with Supabase
