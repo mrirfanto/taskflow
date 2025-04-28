@@ -2,18 +2,15 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { KanbanState, Task } from './types';
 import { getPriorityColor } from './utils';
-import { initialKanbanState } from './config';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, ClipboardListIcon } from 'lucide-react';
 import CreateTask from './create-task';
+import { useKanbanData } from './hooks/useKanbanData';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function KanbanBoard() {
-  // SUPABASE: Replace local state with data from Supabase
-  // Consider using SWR or React Query for data fetching and caching
-  const [kanbanState, setKanbanState] =
-    useState<KanbanState>(initialKanbanState);
+  const { data: kanbanState, error, isLoading } = useKanbanData();
   const [creatingInColumn, setCreatingInColumn] = useState<string | null>(null);
 
   const formatDate = (dateString: string) => {
@@ -29,84 +26,45 @@ export default function KanbanBoard() {
     setCreatingInColumn(null);
   };
 
-  // SUPABASE: This function will need to insert data into Supabase and handle optimistic UI updates
-  // Consider using upsert operations to handle both create and update scenarios
-  const handleSaveTask = (
-    columnId: string,
-    taskData: Omit<Task, 'id' | 'columnId' | 'order'>
-  ) => {
-    const newTaskId = `task-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-    // SUPABASE: Use UUID from Supabase instead of generating client-side IDs
-
-    const column = kanbanState.columns[columnId];
-
-    // Create new task with order -1 to ensure it appears at the top
-    const newTask: Task = {
-      id: newTaskId,
-      columnId,
-      order: -1,
-      ...taskData,
-    };
-
-    // Get existing tasks in this column to adjust their order
-    const existingColumnTasks = column.taskIds.map(
-      (taskId) => kanbanState.tasks[taskId]
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-destructive">Error loading tasks</h3>
+          <p className="text-sm text-muted-foreground">Please try refreshing the page</p>
+        </div>
+      </div>
     );
+  }
 
-    // Adjust order of existing tasks
-    // SUPABASE: This will require a transaction or batch update to maintain consistency
-    const updatedTasks = { ...kanbanState.tasks, [newTaskId]: newTask };
-    existingColumnTasks.forEach((task) => {
-      updatedTasks[task.id] = {
-        ...task,
-        order: task.order + 1,
-      };
-    });
+  if (isLoading || !kanbanState) {
+    return (
+      <div className="h-full flex-grow-1">
+        <div className="flex h-full gap-8 overflow-x-auto pb-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex-shrink-0 flex-grow-1 bg-muted p-4 rounded-md w-[280px]">
+              <Skeleton className="h-10 w-full mb-3" />
+              <div className="flex flex-col gap-3">
+                {[1, 2, 3].map((j) => (
+                  <Skeleton key={j} className="h-24 w-full" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-    // Update state with normalization
-    // SUPABASE: Local state update should happen after successful Supabase operation
-    // Consider optimistic updates with error handling and rollback on failure
-    setKanbanState({
-      ...kanbanState,
-      columns: {
-        ...kanbanState.columns,
-        [columnId]: {
-          ...column,
-          taskIds: [newTaskId, ...column.taskIds],
-        },
-      },
-      tasks: updatedTasks,
-    });
-
-    setCreatingInColumn(null);
-  };
-
-  // SUPABASE: When fetching data, ensure columns are properly sorted
-  // You may need to sort after querying if order isn't handled in the database query
   const orderedColumns = [...kanbanState.board.columnIds]
     .map((columnId) => kanbanState.columns[columnId])
     .sort((a, b) => a.order - b.order);
-
-  // SUPABASE: Consider adding real-time subscription here for live updates
-  // useEffect(() => {
-  //   const subscription = supabase
-  //     .channel('kanban-changes')
-  //     .on('postgres_changes', { event: '*', schema: 'public' }, handleRealtimeUpdate)
-  //     .subscribe();
-  //
-  //   return () => {
-  //     subscription.unsubscribe();
-  //   };
-  // }, []);
 
   return (
     <div className="h-full flex-grow-1">
       <div className="flex h-full gap-8 overflow-x-auto pb-4">
         {orderedColumns.map((column) => {
           const columnTaskIds = column.taskIds;
-          // SUPABASE: Task fetching and sorting might be done via query instead of client-side
           const columnTasks = columnTaskIds
             .map((taskId) => kanbanState.tasks[taskId])
             .sort((a, b) => a.order - b.order);
@@ -143,12 +101,11 @@ export default function KanbanBoard() {
                 {creatingInColumn === column.id && (
                   <CreateTask
                     onCancel={handleCancelCreateTask}
-                    onSave={(taskData) => handleSaveTask(column.id, taskData)}
+                    onSave={() => {}} // TODO: Implement task creation
                   />
                 )}
                 {columnTasks.length > 0 ? (
                   columnTasks.map((task) => (
-                    // SUPABASE: Add drag and drop functionality that updates positions in the database
                     <Card key={task.id} className="p-0 shadow-md">
                       <CardHeader className="p-3 pb-2">
                         <CardTitle className="text-lg font-semibold">
@@ -201,7 +158,6 @@ export default function KanbanBoard() {
           );
         })}
       </div>
-      {/* SUPABASE: Consider adding error handling UI for database operations */}
     </div>
   );
 }

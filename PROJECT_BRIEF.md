@@ -60,4 +60,5 @@
 - [x] Create Kanband Board style for Task List
 - [x] Create UI for adding new task
 - [x] Create data structures for each Board, Column, and Task
-- [] Integrate with Supabase
+- [x] Integrate with Supabase
+- [x] Implement client side fetching with SWR
