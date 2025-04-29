@@ -7,4 +7,5 @@ export interface Task {
     dueDate: string;
     order: number;
     columnId: string;
+    archived_at: string | null;
   }

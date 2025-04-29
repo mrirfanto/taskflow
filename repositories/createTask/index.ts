@@ -49,6 +49,7 @@ export const createTask = async ({
     dueDate: data.due_date,
     order: data.sort_order,
     columnId: data.column_id,
+    archived_at: data.archived_at,
   };
 
   return task;

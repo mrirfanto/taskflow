@@ -9,11 +9,17 @@ import { Priority, Task } from '@/types/task';
 
 interface CreateTaskProps {
   onCancel: () => void;
-  onSave: (task: Omit<Task, 'id' | 'columnId' | 'order'>) => void;
+  onSave: (
+    task: Omit<Task, 'id' | 'columnId' | 'order' | 'archived_at'>
+  ) => void;
   isSubmitting?: boolean;
 }
 
-export default function CreateTask({ onCancel, onSave, isSubmitting = false }: CreateTaskProps) {
+export default function CreateTask({
+  onCancel,
+  onSave,
+  isSubmitting = false,
+}: CreateTaskProps) {
   // Form state
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
@@ -67,7 +73,12 @@ export default function CreateTask({ onCancel, onSave, isSubmitting = false }: C
           </div>
 
           <div className="flex justify-end space-x-2 pt-2">
-            <Button variant="ghost" size="sm" onClick={onCancel} disabled={isSubmitting}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
               <X className="mr-1 h-4 w-4" /> Cancel
             </Button>
             <Button

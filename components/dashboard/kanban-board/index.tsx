@@ -4,15 +4,21 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getPriorityColor } from './utils';
 import { Button } from '@/components/ui/button';
-import { PlusIcon, ClipboardListIcon } from 'lucide-react';
+import { PlusIcon, ClipboardListIcon, Archive } from 'lucide-react';
 import CreateTask from './create-task';
 import { Skeleton } from '@/components/ui/skeleton';
 import useTasks from '@/hooks/useTasks';
 import { toast } from 'sonner';
 import { Task } from '@/types/task';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export default function KanbanBoard() {
-  const { data: kanbanState, error, isLoading, createTask } = useTasks();
+  const { data: kanbanState, isLoading, createTask, archiveTask } = useTasks();
   const [creatingInColumn, setCreatingInColumn] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -29,25 +35,40 @@ export default function KanbanBoard() {
     setCreatingInColumn(null);
   };
 
-  const handleSaveTask = async (taskData: Omit<Task, 'id' | 'columnId' | 'order'>) => {
+  const handleArchiveTask = async (taskId: string) => {
+    try {
+      await archiveTask(taskId);
+      toast.success('Task archived successfully');
+    } catch {
+      toast.error('Failed to archive task');
+    }
+  };
+
+  const handleSaveTask = async (
+    taskData: Omit<Task, 'id' | 'columnId' | 'order' | 'archived_at'>
+  ) => {
     if (!creatingInColumn || !kanbanState) return;
-    
+
     setIsSubmitting(true);
-    
+
     try {
       // Get the current column to determine the order for the new task
       const column = kanbanState.columns[creatingInColumn];
-      const currentTasks = column?.taskIds
-        .map(id => kanbanState.tasks[id])
-        .filter((task): task is Task => task !== undefined) || [];
-      
+      const currentTasks =
+        column?.taskIds
+          .map((id: string) => kanbanState.tasks[id])
+          .filter(
+            (task: Task | undefined): task is Task => task !== undefined
+          ) || [];
+
       // Calculate the new order (add to the top of the list)
       // Find the highest order value and add 1000 to ensure it's at the top
       // This leaves room for potential reordering in the future
-      const newOrder = currentTasks.length > 0 
-        ? Math.max(...currentTasks.map(task => task.order)) + 1000 
-        : 1000;
-      
+      const newOrder =
+        currentTasks.length > 0
+          ? Math.max(...currentTasks.map((task: Task) => task.order)) + 1000
+          : 1000;
+
       // Create the task using the useTasks hook
       await createTask(
         taskData.title,
@@ -56,18 +77,18 @@ export default function KanbanBoard() {
         creatingInColumn,
         newOrder
       );
-      
+
       // Close the create task form
       setCreatingInColumn(null);
-      
+
       // Show success toast
       toast.success('Task created successfully', {
-        richColors: true
+        richColors: true,
       });
     } catch (error) {
       // Show error toast
       toast.error('Failed to create task. Please try again.', {
-        richColors: true
+        richColors: true,
       });
       console.error('Error creating task:', error);
     } finally {
@@ -75,23 +96,15 @@ export default function KanbanBoard() {
     }
   };
 
-  if (error) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <h3 className="text-lg font-semibold text-destructive">Error loading tasks</h3>
-          <p className="text-sm text-muted-foreground">Please try refreshing the page</p>
-        </div>
-      </div>
-    );
-  }
-
   if (isLoading || !kanbanState) {
     return (
       <div className="h-full flex-grow-1">
         <div className="flex h-full gap-8 overflow-x-auto pb-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-shrink-0 flex-grow-1 bg-muted p-4 rounded-md w-[280px]">
+            <div
+              key={i}
+              className="flex-shrink-0 flex-grow-1 bg-muted p-4 rounded-md w-[280px]"
+            >
               <Skeleton className="h-10 w-full mb-3" />
               <div className="flex flex-col gap-3">
                 {[1, 2, 3].map((j) => (
@@ -114,8 +127,9 @@ export default function KanbanBoard() {
       <div className="flex h-full gap-8 overflow-x-auto pb-4">
         {orderedColumns.map((column) => {
           const columnTaskIds = column.taskIds;
-          const columnTasks = columnTaskIds
-            .map((taskId) => kanbanState.tasks[taskId]);
+          const columnTasks = columnTaskIds.map(
+            (taskId: string) => kanbanState.tasks[taskId]
+          );
 
           return (
             <div
@@ -154,15 +168,35 @@ export default function KanbanBoard() {
                   />
                 )}
                 {columnTasks.length > 0 ? (
-                  columnTasks.map((task) => (
-                    <Card key={task.id} className="p-0 shadow-md">
+                  columnTasks.map((task: Task) => (
+                    <Card key={task.id} className="p-0 shadow-md group">
                       <CardHeader className="p-3 pb-2">
-                        <CardTitle className="text-lg font-semibold">
-                          {task.title}
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg font-semibold">
+                            {task.title}
+                          </CardTitle>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Archive task"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                                  onClick={() => handleArchiveTask(task.id)}
+                                >
+                                  <Archive className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Archive task</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                       </CardHeader>
                       <CardContent className="p-3 pt-0">
-                        <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
                           <span
                             className={`text-xs px-2 py-1 rounded-full font-medium ${getPriorityColor(
                               task.priority

@@ -29,4 +29,5 @@ export interface DatabaseTask {
   updated_at: string;
   description?: string;
   assignee_id?: string;
+  archived_at: string | null;
 } 

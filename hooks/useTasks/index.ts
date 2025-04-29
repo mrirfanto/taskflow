@@ -4,6 +4,7 @@ import { fetchTaskList } from "@/repositories/fetchTaskList";
 import { createTask } from "@/repositories/createTask";
 import { Task, Priority } from "@/types/task";
 import { v4 as uuidv4 } from 'uuid';
+import { archiveTask } from '@/repositories/archiveTask';
 
 export default function useTasks() {
     const { data, error, isLoading, mutate } = useSWR<KanbanState>(
@@ -34,6 +35,7 @@ export default function useTasks() {
         dueDate,
         order,
         columnId,
+        archived_at: null,
       };
       
       // Optimistically update the UI
@@ -142,11 +144,67 @@ export default function useTasks() {
       }
     };
     
+    const handleArchiveTask = async (taskId: string): Promise<void> => {
+      // Optimistically update the UI
+      await mutate(
+        (currentData) => {
+          if (!currentData) return currentData;
+          // Create a new copy of the data
+          const updatedData = { ...currentData };
+          // Create a new copy of the tasks object
+          updatedData.tasks = { ...updatedData.tasks };
+          const task = { ...updatedData.tasks[taskId] };
+          task.archived_at = new Date().toISOString();
+          updatedData.tasks[taskId] = task;
+
+          // Create a new copy of the columns object
+          updatedData.columns = { ...updatedData.columns };
+          const column = { ...updatedData.columns[task.columnId] };
+          column.taskIds = column.taskIds.filter(id => id !== taskId);
+          updatedData.columns[task.columnId] = column;
+
+          return updatedData;
+        },
+        { revalidate: false } // Don't revalidate from the server yet
+      );
+
+      try {
+        await archiveTask(taskId);
+      } catch (error) {
+        // Revert the optimistic update if the server request fails
+        await mutate(
+          (currentData) => {
+            if (!currentData) return currentData;
+            // Create a new copy of the data
+            const updatedData = { ...currentData };
+            // Create a new copy of the tasks object
+            updatedData.tasks = { ...updatedData.tasks };
+            const task = { ...updatedData.tasks[taskId] };
+            task.archived_at = null;
+            updatedData.tasks[taskId] = task;
+
+            // Create a new copy of the columns object
+            updatedData.columns = { ...updatedData.columns };
+            const column = { ...updatedData.columns[task.columnId] };
+            if (!column.taskIds.includes(taskId)) {
+              column.taskIds = [taskId, ...column.taskIds];
+            }
+            updatedData.columns[task.columnId] = column;
+
+            return updatedData;
+          },
+          { revalidate: false }
+        );
+        throw error;
+      }
+    };
+    
     return {
       data,
       error,
       isLoading,
       mutate,
       createTask: handleCreateTask,
+      archiveTask: handleArchiveTask,
     };
 }

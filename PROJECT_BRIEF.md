@@ -16,7 +16,6 @@
 - **Tailwind CSS**
 - **shadcn/ui**
 - **React Hook Form + Zod** – for form handling and validation
-- **@dnd-kit/core** – drag & drop support for Kanban
 - **Supabase + PostgreSQL** – full backend stack (auth, data, storage)
 - **Lucide Icons**
 
@@ -29,8 +28,6 @@
 | `/login`     | Auth form with Supabase integration             |
 | `/register`  | Signup with email and password                  |
 | `/dashboard` | Stats cards, recent activity, task trends chart |
-| `/kanban`    | Board with task columns and draggable cards     |
-| `/calendar`  | Monthly calendar view of tasks and events       |
 | `/profile`   | User profile form with update capability        |
 | `404`        | Custom not-found page                           |
 
@@ -48,7 +45,7 @@
 ### Phase 2: Authentication Integration with Supabase
 
 - [x] Create Supabase Client
-- [x] Connect with Supabase Auth
+- [x] Connect with Supabase Authx
 - [x] Connect Login page with supabase auth
 - [x] Connect Register Page with supabase auth
 - [] Enable Google sign in
@@ -64,5 +61,10 @@
 - [x] Implement client side fetching with SWR
 - [x] Implement create task
 
-### Phase 4
-- [] Implement default board for new authenticated users
+### Phase 4: Interaction to update Task metadata
+
+- [x] Implement default board for new authenticated users
+- [x] Implement archieve task
+- [] Implement drag and drop functionality
+- [] Implement checkbox to set task as completed
+- [] Implement date picker for dueDate
