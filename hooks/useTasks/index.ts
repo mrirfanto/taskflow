@@ -199,6 +199,56 @@ export default function useTasks() {
       }
     };
     
+    const handleUpdateTaskColumn = async (taskId: string, newColumnId: string): Promise<void> => {
+      if (!data) return;
+      
+      // Get the task and its current column
+      const task = data.tasks[taskId];
+      if (!task) return;
+      
+      const oldColumnId = task.columnId;
+      
+      // Don't do anything if the task is already in the target column
+      if (oldColumnId === newColumnId) return;
+      
+      // Optimistically update the UI
+      await mutate(
+        (currentData) => {
+          if (!currentData) return currentData;
+          
+          // Create a copy of the current data
+          const updatedData = { ...currentData };
+          
+          // Update the task's columnId
+          updatedData.tasks = {
+            ...updatedData.tasks,
+            [taskId]: {
+              ...updatedData.tasks[taskId],
+              columnId: newColumnId
+            }
+          };
+          
+          // Remove the task from the old column
+          updatedData.columns[oldColumnId] = {
+            ...updatedData.columns[oldColumnId],
+            taskIds: updatedData.columns[oldColumnId].taskIds.filter(id => id !== taskId)
+          };
+          
+          // Add the task to the new column (at the top)
+          updatedData.columns[newColumnId] = {
+            ...updatedData.columns[newColumnId],
+            taskIds: [taskId, ...updatedData.columns[newColumnId].taskIds]
+          };
+          
+          return updatedData;
+        },
+        { revalidate: false } // Don't revalidate from the server yet
+      );
+      
+      // Note: We'll implement the actual database update later
+      console.log('Task moved from', oldColumnId, 'to', newColumnId);
+    };
+    
     return {
       data,
       error,
@@ -206,5 +256,6 @@ export default function useTasks() {
       mutate,
       createTask: handleCreateTask,
       archiveTask: handleArchiveTask,
+      updateTaskColumn: handleUpdateTaskColumn,
     };
 }
