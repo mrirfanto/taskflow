@@ -9,13 +9,7 @@ import Column from './column';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 
 export default function KanbanBoard() {
-  const {
-    data: kanbanState,
-    isLoading,
-    createTask,
-    archiveTask,
-    updateTaskColumn,
-  } = useTasks();
+  const { data: kanbanState, isLoading, createTask, archiveTask } = useTasks();
   const [creatingInColumn, setCreatingInColumn] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -87,7 +81,6 @@ export default function KanbanBoard() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const taskId = event.active.id.toString();
     const newColumnId = event.over?.id.toString();
     const oldColumnId = event.active.data?.current?.columnId;
 
@@ -95,9 +88,6 @@ export default function KanbanBoard() {
 
     // Don't do anything if the task is dropped in the same column
     if (newColumnId === oldColumnId) return;
-
-    // Use the updateTaskColumn function from the useTasks hook
-    updateTaskColumn(taskId, newColumnId);
   };
 
   if (isLoading || !kanbanState) {

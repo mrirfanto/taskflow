@@ -1,261 +1,114 @@
 import { KanbanState } from "@/types/kanban-board";
 import useSWR from "swr";
-import { fetchTaskList } from "@/repositories/fetchTaskList";
-import { createTask } from "@/repositories/createTask";
 import { Task, Priority } from "@/types/task";
 import { v4 as uuidv4 } from 'uuid';
-import { archiveTask } from '@/repositories/archiveTask';
+import { fetcher } from '@/utils/fetcher';
+import { createOptimisticUpdate, removeTaskFromColumn, withOptimisticUpdate } from './utils/optimisticUpdates';
 
 export default function useTasks() {
-    const { data, error, isLoading, mutate } = useSWR<KanbanState>(
-        'kanban-data',
-        fetchTaskList,
-        {
-          revalidateOnFocus: false,
-          revalidateOnReconnect: true,
-          refreshInterval: 30000, // Refresh every 30 seconds
-        }
-      );
-    
-    const handleCreateTask = async (
-      title: string,
-      priority: Priority,
-      dueDate: string,
-      columnId: string,
-      order: number
-    ): Promise<Task> => {
-      // Generate a temporary ID for optimistic update
-      const tempId = `temp-${uuidv4()}`;
-      
-      // Create a temporary task for optimistic update
-      const tempTask: Task = {
-        id: tempId,
-        title,
-        priority,
-        dueDate,
-        order,
-        columnId,
-        archived_at: null,
-      };
-      
-      // Optimistically update the UI
-      await mutate(
-        (currentData) => {
-          if (!currentData) return currentData;
-          
-          // Create a copy of the current data
-          const updatedData = { ...currentData };
-          
-          // Create a new tasks object without the temporary task
-          const newTasks = { ...updatedData.tasks };
-          delete newTasks[tempId];
-          
-          // Add the task to the tasks object
-          updatedData.tasks = {
-            ...newTasks,
-            [tempId]: tempTask,
-          };
-          
-          // Add the task ID to the column's taskIds array
-          if (updatedData.columns[columnId]) {
-            updatedData.columns[columnId] = {
-              ...updatedData.columns[columnId],
-              taskIds: [tempId, ...updatedData.columns[columnId].taskIds],
-            };
-          }
-          
-          return updatedData;
-        },
-        { revalidate: false } // Don't revalidate from the server yet
-      );
-      
-      try {
-        // Create the task on the server
-        const newTask = await createTask({
-          title,
-          priority,
-          dueDate,
-          columnId,
-          order,
-        });
-        
-        // Update the UI with the real task data
-        await mutate(
-          (currentData) => {
-            if (!currentData) return currentData;
-            
-            // Create a copy of the current data
-            const updatedData = { ...currentData };
-            
-            // Create a new tasks object without the temporary task
-            const newTasks = { ...updatedData.tasks };
-            delete newTasks[tempId];
-            
-            // Add the real task
-            updatedData.tasks = {
-              [newTask.id]: newTask,
-              ...newTasks,
-            };
-            
-            // Update the column's taskIds array
-            if (updatedData.columns[columnId]) {
-              updatedData.columns[columnId] = {
-                ...updatedData.columns[columnId],
-                taskIds: [newTask.id, ...updatedData.columns[columnId].taskIds
-                  .filter(id => id !== tempId)],
-              };
-            }
-            
-            return updatedData;
-          },
-          { revalidate: false } // Don't revalidate from the server yet
-        );
-        
-        return newTask;
-      } catch (error) {
-        // If there's an error, revert the optimistic update
-        await mutate(
-          (currentData) => {
-            if (!currentData) return currentData;
-            
-            // Create a copy of the current data
-            const updatedData = { ...currentData };
-            
-            // Create a new tasks object without the temporary task
-            const newTasks = { ...updatedData.tasks };
-            delete newTasks[tempId];
-            updatedData.tasks = newTasks;
-            
-            // Remove the task ID from the column's taskIds array
-            if (updatedData.columns[columnId]) {
-              updatedData.columns[columnId] = {
-                ...updatedData.columns[columnId],
-                taskIds: updatedData.columns[columnId].taskIds.filter(id => id !== tempId),
-              };
-            }
-            
-            return updatedData;
-          },
-          { revalidate: false } // Don't revalidate from the server yet
-        );
-        
-        // Re-throw the error to be handled by the caller
-        throw error;
-      }
+  const { data: kanbanState, error, isLoading, mutate } = useSWR<KanbanState>(
+    '/api/board',
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      refreshInterval: 30000,
+    }
+  );
+
+  const createTask = async (
+    title: string,
+    priority: Priority,
+    dueDate: string,
+    columnId: string,
+    order: number
+  ): Promise<Task> => {
+    const tempId = `temp-${uuidv4()}`;
+    const newTask = {
+      id: tempId,
+      title,
+      priority,
+      dueDate,
+      order,
+      columnId,
+      archived_at: null,
     };
-    
-    const handleArchiveTask = async (taskId: string): Promise<void> => {
-      // Optimistically update the UI
-      await mutate(
-        (currentData) => {
-          if (!currentData) return currentData;
-          // Create a new copy of the data
-          const updatedData = { ...currentData };
-          // Create a new copy of the tasks object
-          updatedData.tasks = { ...updatedData.tasks };
-          const task = { ...updatedData.tasks[taskId] };
-          task.archived_at = new Date().toISOString();
-          updatedData.tasks[taskId] = task;
 
-          // Create a new copy of the columns object
-          updatedData.columns = { ...updatedData.columns };
-          const column = { ...updatedData.columns[task.columnId] };
-          column.taskIds = column.taskIds.filter(id => id !== taskId);
-          updatedData.columns[task.columnId] = column;
-
-          return updatedData;
-        },
-        { revalidate: false } // Don't revalidate from the server yet
-      );
-
-      try {
-        await archiveTask(taskId);
-      } catch (error) {
-        // Revert the optimistic update if the server request fails
-        await mutate(
-          (currentData) => {
-            if (!currentData) return currentData;
-            // Create a new copy of the data
-            const updatedData = { ...currentData };
-            // Create a new copy of the tasks object
-            updatedData.tasks = { ...updatedData.tasks };
-            const task = { ...updatedData.tasks[taskId] };
-            task.archived_at = null;
-            updatedData.tasks[taskId] = task;
-
-            // Create a new copy of the columns object
-            updatedData.columns = { ...updatedData.columns };
-            const column = { ...updatedData.columns[task.columnId] };
-            if (!column.taskIds.includes(taskId)) {
-              column.taskIds = [taskId, ...column.taskIds];
-            }
-            updatedData.columns[task.columnId] = column;
-
-            return updatedData;
-          },
-          { revalidate: false }
-        );
-        throw error;
-      }
-    };
-    
-    const handleUpdateTaskColumn = async (taskId: string, newColumnId: string): Promise<void> => {
-      if (!data) return;
-      
-      // Get the task and its current column
-      const task = data.tasks[taskId];
-      if (!task) return;
-      
-      const oldColumnId = task.columnId;
-      
-      // Don't do anything if the task is already in the target column
-      if (oldColumnId === newColumnId) return;
-      
-      // Optimistically update the UI
-      await mutate(
-        (currentData) => {
-          if (!currentData) return currentData;
-          
-          // Create a copy of the current data
-          const updatedData = { ...currentData };
-          
-          // Update the task's columnId
-          updatedData.tasks = {
-            ...updatedData.tasks,
-            [taskId]: {
-              ...updatedData.tasks[taskId],
-              columnId: newColumnId
-            }
-          };
-          
-          // Remove the task from the old column
-          updatedData.columns[oldColumnId] = {
-            ...updatedData.columns[oldColumnId],
-            taskIds: updatedData.columns[oldColumnId].taskIds.filter(id => id !== taskId)
-          };
-          
-          // Add the task to the new column (at the top)
-          updatedData.columns[newColumnId] = {
-            ...updatedData.columns[newColumnId],
-            taskIds: [taskId, ...updatedData.columns[newColumnId].taskIds]
-          };
-          
-          return updatedData;
-        },
-        { revalidate: false } // Don't revalidate from the server yet
-      );
-      
-      // Note: We'll implement the actual database update later
-      console.log('Task moved from', oldColumnId, 'to', newColumnId);
-    };
-    
-    return {
-      data,
-      error,
-      isLoading,
+    return withOptimisticUpdate<KanbanState, Task>(
       mutate,
-      createTask: handleCreateTask,
-      archiveTask: handleArchiveTask,
-      updateTaskColumn: handleUpdateTaskColumn,
+      createOptimisticUpdate(tempId, newTask, columnId),
+      async () => {
+        const response = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ title, priority, dueDate, columnId, order }),
+        });
+
+        if (!response.ok) {
+          return { success: false, error: new Error('Failed to create task') };
+        }
+
+        const createdTask = await response.json();
+        return { success: true, data: createdTask };
+      },
+      (currentData) => {
+        if (!currentData) return currentData;
+        const updatedData = { ...currentData };
+        const newTasks = { ...updatedData.tasks };
+        delete newTasks[tempId];
+        return {
+          ...updatedData,
+          tasks: newTasks,
+        };
+      }
+    );
+  };
+
+  const archiveTask = async (taskId: string): Promise<void> => {
+    if (!kanbanState) return;
+    const task = kanbanState.tasks[taskId];
+    if (!task) return;
+
+    // Compose both updates: set archived_at and remove from column
+    const optimisticUpdate = (currentData: KanbanState | undefined) => {
+      let updated = createOptimisticUpdate(taskId, { archived_at: new Date().toISOString() }, task.columnId)(currentData);
+      updated = removeTaskFromColumn(taskId, task.columnId)(updated);
+      return updated;
     };
+
+    // Rollback: set archived_at to null and re-add to column
+    const rollbackUpdate = (currentData: KanbanState | undefined) => {
+      const updated = createOptimisticUpdate(taskId, { archived_at: null }, task.columnId)(currentData);
+      // Optionally, re-add to column if you want to fully rollback
+      if (updated && updated.columns[task.columnId]) {
+        updated.columns[task.columnId].taskIds = [taskId, ...updated.columns[task.columnId].taskIds];
+      }
+      return updated;
+    };
+
+    await withOptimisticUpdate<KanbanState, void>(
+      mutate,
+      optimisticUpdate,
+      async () => {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          return { success: false, error: new Error('Failed to archive task') };
+        }
+        return { success: true, data: undefined };
+      },
+      rollbackUpdate
+    );
+  };
+
+  return {
+    data: kanbanState,
+    error,
+    isLoading,
+    createTask,
+    archiveTask,
+  };
 }
